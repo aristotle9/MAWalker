@@ -12,39 +12,39 @@ import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 import org.w3c.dom.Document;
 
-import walker.ErrorData;
+import walker.ErrorData.DataType;
+import walker.ErrorData.ErrorType;
 import walker.Info;
-import walker.Process;
 import action.ActionRegistry.Action;
 
-public class PrivateFairyBattle {
+public class PrivateFairyBattle extends AbstractAction {
 	public static final Action Name = Action.PRIVATE_FAIRY_BATTLE;
 	
 	private static final String URL_PRIVATE_BATTLE = "http://web.million-arthurs.com/connect/app/private_fairy/private_fairy_battle?cyt=1";
 	
-	private static byte[] response;
+	private byte[] response;
 	
-	public static boolean run() throws Exception {
+	public boolean run() throws Exception {
 		ArrayList<NameValuePair> post = new ArrayList<NameValuePair>();
-		post.add(new BasicNameValuePair("no", Process.info.fairy.No));
-		post.add(new BasicNameValuePair("serial_id", Process.info.fairy.SerialId));
-		post.add(new BasicNameValuePair("user_id", Process.info.fairy.UserId));
+		post.add(new BasicNameValuePair("no", process.info.fairy.No));
+		post.add(new BasicNameValuePair("serial_id", process.info.fairy.SerialId));
+		post.add(new BasicNameValuePair("user_id", process.info.fairy.UserId));
 		try {
-			response = Process.network.ConnectToServer(URL_PRIVATE_BATTLE, post, false);
+			response = process.network.ConnectToServer(URL_PRIVATE_BATTLE, post, false);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.text;
-			ErrorData.currentErrorType = ErrorData.ErrorType.ConnectionError;
-			ErrorData.text = ex.getLocalizedMessage();
+			errorData.currentDataType = DataType.text;
+			errorData.currentErrorType = ErrorType.ConnectionError;
+			errorData.text = ex.getLocalizedMessage();
 			throw ex;
 		}
 
 		Document doc;
 		try {
-			doc = Process.ParseXMLBytes(response);
+			doc = process.ParseXMLBytes(response);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.PrivateFairyBattleDataError;
-			ErrorData.bytes = response;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.PrivateFairyBattleDataError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		
@@ -53,56 +53,56 @@ public class PrivateFairyBattle {
 		
 		try {
 			if (!xpath.evaluate("/response/header/error/code", doc).equals("0")) {
-				ErrorData.currentErrorType = ErrorData.ErrorType.PrivateFairyBattleResponse;
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.text = xpath.evaluate("/response/header/error/message", doc);
+				errorData.currentErrorType = ErrorType.PrivateFairyBattleResponse;
+				errorData.currentDataType = DataType.text;
+				errorData.text = xpath.evaluate("/response/header/error/message", doc);
 				return false;
 			}
-			if (Process.info.LatestFairyList.size() > 1000) Process.info.LatestFairyList.poll();
-			Process.info.LatestFairyList.offer(Process.info.fairy);
+			if (process.info.LatestFairyList.size() > 1000) process.info.LatestFairyList.poll();
+			process.info.LatestFairyList.offer(process.info.fairy);
 			
 			if ((Boolean)xpath.evaluate("count(//private_fairy_top) > 0", doc, XPathConstants.BOOLEAN)) {
-				Process.info.events.push(Info.EventType.fairyBattleEnd);
+				process.info.events.push(Info.EventType.fairyBattleEnd);
 				return true;
 			}
-			ParseUserDataInfo.parse(doc);
-			ParseCardList.parse(doc);
+			ParseUserDataInfo.parse(doc, process);
+			ParseCardList.parse(doc, process);
 			if (xpath.evaluate("//battle_result/winner", doc).equals("1")) {
-				if(Process.info.fairy.UserId.equals(Process.info.userId))
-					Process.info.OwnFairyBattleKilled = true;
-				Process.info.events.push(Info.EventType.fairyBattleWin);
+				if(process.info.fairy.UserId.equals(process.info.userId))
+					process.info.OwnFairyBattleKilled = true;
+				process.info.events.push(Info.EventType.fairyBattleWin);
 			} else {
-				if(Process.info.fairy.UserId.equals(Process.info.userId))
-					Process.info.OwnFairyBattleKilled = false;
-				Process.info.events.push(Info.EventType.fairyBattleLose);
+				if(process.info.fairy.UserId.equals(process.info.userId))
+					process.info.OwnFairyBattleKilled = false;
+				process.info.events.push(Info.EventType.fairyBattleLose);
 			}
 			
-			//Process.info.fairy.FairyName = xpath.evaluate("//battle_vs_info/player[last()]/name", doc);
-			Process.info.SetTimeoutByAction(Name);
+			//info.fairy.FairyName = xpath.evaluate("//battle_vs_info/player[last()]/name", doc);
+			process.info.SetTimeoutByAction(Name);
 			
 			String spec = xpath.evaluate("//private_fairy_reward_list/special_item/after_count", doc);
 			if (spec.length() != 0) {
-				Process.info.gather = Integer.parseInt(spec);
+				process.info.gather = Integer.parseInt(spec);
 			} else {
-				Process.info.gather = -1;
+				process.info.gather = -1;
 			}
 			
 			// 检查觉醒
 			if ((Boolean)xpath.evaluate("count(//ex_fairy/rare_fairy)>0", doc, XPathConstants.BOOLEAN)) {
 				// Yes
-				Process.info.fairy.Type = FairyBattleInfo.PRIVATE | FairyBattleInfo.SELF | FairyBattleInfo.RARE;
-				Process.info.fairy.FairyLevel = xpath.evaluate("//ex_fairy/rare_fairy/lv", doc);
-				Process.info.fairy.SerialId = xpath.evaluate("//ex_fairy/rare_fairy/serial_id", doc);
-				Process.info.fairy.UserId = xpath.evaluate("//ex_fairy/rare_fairy/discoverer_id", doc);
-				Process.info.events.push(Info.EventType.fairyTransform);
+				process.info.fairy.Type = FairyBattleInfo.PRIVATE | FairyBattleInfo.SELF | FairyBattleInfo.RARE;
+				process.info.fairy.FairyLevel = xpath.evaluate("//ex_fairy/rare_fairy/lv", doc);
+				process.info.fairy.SerialId = xpath.evaluate("//ex_fairy/rare_fairy/serial_id", doc);
+				process.info.fairy.UserId = xpath.evaluate("//ex_fairy/rare_fairy/discoverer_id", doc);
+				process.info.events.push(Info.EventType.fairyTransform);
 			}
 			
 			
 		} catch (Exception ex) {
-			if (ErrorData.currentErrorType != ErrorData.ErrorType.none) throw ex;
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.PrivateFairyBattleDataParseError;
-			ErrorData.bytes = response;
+			if (errorData.currentErrorType != ErrorType.none) throw ex;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.PrivateFairyBattleDataParseError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		

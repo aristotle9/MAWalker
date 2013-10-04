@@ -7,7 +7,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -19,7 +21,9 @@ import org.w3c.dom.Document;
 import com.sun.org.apache.xml.internal.serialize.OutputFormat;
 import com.sun.org.apache.xml.internal.serialize.XMLSerializer;
 
+import walker.ErrorData.ErrorType;
 import walker.Info.TimeoutEntry;
+import action.AbstractAction;
 import action.ActionRegistry.Action;
 import action.AddArea;
 import action.Explore;
@@ -38,24 +42,57 @@ import action.SellCard;
 import action.Use;
 
 public class Process {
-	public static Info info;
-	public static Network network;
+	public Info info;
+	public Network network;
+	public ErrorData errorData;
+	public Think think;
+	private Map<Class<?>, AbstractAction> actionMap;
 	
-	public Process() {
-		info = new Info();
-		network = new Network();
+	public Process(Info info, ErrorData errorData) {
+		this.info = info;
+		this.errorData = errorData;
+		network = new Network(info);
+		think = new Think(this);
+		actionMap = new HashMap<Class<?>, AbstractAction>();
+	}
+	
+	private void addAction(Class<AbstractAction> cls) {
+		if(actionMap.get(cls) != null) {
+			System.err.println("每个Action只允许一个实例: " + cls.getName());
+			return;
+		}
+		
+		AbstractAction action = null;
+		try {
+			action = cls.newInstance();
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		}
+		action.setErrorData(errorData);
+		action.setProcess(this);
+		actionMap.put(cls, action);
+	}
+	
+	@SuppressWarnings("unchecked")
+	public AbstractAction action(Class<?> cls) {
+		if(actionMap.get(cls) == null) {
+			addAction((Class<AbstractAction>) cls);
+		}
+		return actionMap.get(cls);
 	}
 	
 	public void auto() throws Exception {
 		try {
-			if (ErrorData.currentErrorType != ErrorData.ErrorType.none) {
+			if (errorData.currentErrorType != ErrorType.none) {
 				rescue();
 			} else {
 				long start = System.currentTimeMillis();
-				execute(Think.doIt(getPossibleAction()));
+				execute(think.doIt(getPossibleAction()));
 				long delta = System.currentTimeMillis() - start;
 				if (delta < 5000) Thread.sleep(5000 - delta);
-				if (Info.nightModeSwitch && info.events.empty() && info.NoFairy) Thread.sleep(600000); // 半夜速度慢点
+				if (info.nightModeSwitch && info.events.empty() && info.NoFairy) Thread.sleep(600000); // 半夜速度慢点
 			}
 		} catch (Exception ex) {
 			throw ex;
@@ -63,22 +100,22 @@ public class Process {
 	}
 	
 	private void rescue() {
-		Go.log(ErrorData.currentErrorType.toString());
-		switch (ErrorData.currentDataType) {
+		Go.log(errorData.currentErrorType.toString());
+		switch (errorData.currentDataType) {
 		case bytes:
-			if (ErrorData.bytes != null) {
-				Go.log(new String(ErrorData.bytes));	
+			if (errorData.bytes != null) {
+				Go.log(new String(errorData.bytes));	
 			} else {
 				Go.log("Set type to byte, but no message");
 			}
 			break;
 		case text:
-			Go.log(ErrorData.text);
+			Go.log(errorData.text);
 			break;
 		default:
 			break;
 		}
-		ErrorData.clear();
+		errorData.clear();
 	}
 	
 	private List<Action> getPossibleAction() {
@@ -132,7 +169,7 @@ public class Process {
 				result.add(Action.GOTO_FLOOR);
 				break;
 			case levelUp:
-				if (Info.AutoAddp == false) {
+				if (info.AutoAddp == false) {
 					Go.log("自动加点已关闭");
 				} else {
 					result.add(Action.LV_UP);				
@@ -157,19 +194,19 @@ public class Process {
 		for (TimeoutEntry e : te) {
 			switch (e) {
 			case apbc:
-				Process.info.events.push(Info.EventType.needAPBCInfo);
+				info.events.push(Info.EventType.needAPBCInfo);
 				break;
 			case fairy:
-				Process.info.events.push(Info.EventType.fairyAppear);
+				info.events.push(Info.EventType.fairyAppear);
 				break;
 			case login:
-				Process.info.events.push(Info.EventType.cookieOutOfDate);
+				info.events.push(Info.EventType.cookieOutOfDate);
 				break;
 			case map:
-				Process.info.events.push(Info.EventType.needFloorInfo);
+				info.events.push(Info.EventType.needFloorInfo);
 				break;
 			case ticket:
-				if (info.ticket > 0) Process.info.events.push(Info.EventType.cardFull);
+				if (info.ticket > 0) info.events.push(Info.EventType.cardFull);
 				break;
 			case reward:
 			default:
@@ -179,7 +216,7 @@ public class Process {
 		result.add(Action.EXPLORE);
 		result.add(Action.USE);
 		// result.add(Action.GOTO_FLOOR);
-		if (!Process.info.OwnFairyBattleKilled){
+		if (!info.OwnFairyBattleKilled){
 			try {
 				Thread.sleep(30000);
 			} catch (InterruptedException e1) {
@@ -187,7 +224,7 @@ public class Process {
 			}
 			result.add(Action.GET_FAIRY_LIST);
 		}
-		if (Info.FairyBattleFirst)
+		if (info.FairyBattleFirst)
 			result.add(Action.GET_FAIRY_LIST);
 		return result;
 	}
@@ -196,7 +233,7 @@ public class Process {
 		switch (action) {
 		case LOGIN:
 			try {
-				if (Login.run()) {
+				if (action(Login.class).run()) {
 					Go.log(String.format("User: %s, AP: %d/%d, BC: %d/%d, Card: %d/%d, ticket: %d",
 							info.username, info.ap, info.apMax, info.bc, info.bcMax,
 							info.cardList.size(), info.cardMax, info.ticket));	
@@ -206,15 +243,15 @@ public class Process {
 				}
 			} catch (Exception ex) {
 				info.events.push(Info.EventType.notLoggedIn);
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) {
+				if (errorData.currentErrorType == ErrorType.none) {
 					throw ex;
 				}
 			}
 			break;
 		case GET_FLOOR_INFO:
 			try {
-				if (GetFloorInfo.run()) {
-					if (Process.info.AllClear) Process.info.front = Process.info.floor.get(1);
+				if (action(GetFloorInfo.class).run()) {
+					if (info.AllClear) info.front = info.floor.get(1);
 					Go.log(String.format("Area(%d) Front: %s>%s@c=%d", 
 							info.area.size(), 
 							info.area.get(Integer.parseInt(info.front.areaId)).areaName, 
@@ -225,15 +262,15 @@ public class Process {
 			} catch (Exception ex) {
 				if (ex.getMessage() != null && ex.getMessage().equals("302")) {
 					info.events.push(Info.EventType.innerMapJump);
-					ErrorData.clear();
+					errorData.clear();
 				} else {
-					if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+					if (errorData.currentErrorType == ErrorType.none) throw ex;
 				}
 			}
 			break;
 		case ADD_AREA:
 			try {
-				if (AddArea.run()) {
+				if (action(AddArea.class).run()) {
 					Go.log(String.format("Area(%d) Front: %s>%s@c=%d", 
 							info.area.size(), 
 							info.area.get(Integer.parseInt(info.front.areaId)).areaName, 
@@ -244,29 +281,29 @@ public class Process {
 			} catch (Exception ex) {
 				if (ex.getMessage().equals("302")) {
 					info.events.push(Info.EventType.innerMapJump);
-					ErrorData.clear();
+					errorData.clear();
 				} else {
-					if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+					if (errorData.currentErrorType == ErrorType.none) throw ex;
 				}
 			}
 			break;
 		case GET_FAIRY_LIST:
 			try {
-				if (GetFairyList.run()) {
+				if (action(GetFairyList.class).run()) {
 					if (!info.events.empty() && info.events.peek() == Info.EventType.fairyCanBattle) {
 						Go.log("Other's fairy found!");
 					} else {
 						Go.log("No fairy found.");
 					}
 				} else {
-					if (Info.FairyBattleFirst) info.events.push(Info.EventType.fairyAppear);
+					if (info.FairyBattleFirst) info.events.push(Info.EventType.fairyAppear);
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.ConnectionError) {
+				if (errorData.currentErrorType == ErrorType.ConnectionError) {
 					info.events.push(Info.EventType.fairyAppear); // 再次检测
 					Go.log("Retry@GetFairyList");
-					ErrorData.clear();
-				} else if (ErrorData.currentErrorType == ErrorData.ErrorType.none) {
+					errorData.clear();
+				} else if (errorData.currentErrorType == ErrorType.none) {
 					throw ex;
 				}
 			}
@@ -274,7 +311,7 @@ public class Process {
 			break;
 		case GOTO_FLOOR:
 			try {
-				if (GotoFloor.run()) {
+				if (action(GotoFloor.class).run()) {
 					Go.log(String.format("Goto: AP: %d/%d, BC: %d/%d, Front:%s>%s",
 							info.ap, info.apMax, info.bc, info.bcMax,
 							info.area.get(Integer.parseInt(info.front.areaId)).areaName, 
@@ -283,14 +320,14 @@ public class Process {
 					
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 				
 			}
 			
 			break;
 		case PRIVATE_FAIRY_BATTLE:
 			try {
-				if (PrivateFairyBattle.run()) {
+				if (action(PrivateFairyBattle.class).run()) {
 					String result = "";
 					if (!info.events.empty()) {
 						switch (info.events.peek()) {
@@ -319,12 +356,12 @@ public class Process {
 					
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 			}
 			break;
 		case EXPLORE:
 			try {
-				if (Explore.run()) {
+				if (action(Explore.class).run()) {
 					Go.log(String.format("Explore[%s>%s]: AP: %d, Gold+%s, Exp+%s, Progress:%s, Result: %s.", 
 							info.area.get(Integer.parseInt(info.front.areaId)).areaName, info.front.floorId,info.ap,
 							info.ExploreGold, info.ExploreExp, info.ExploreProgress, info.ExploreResult));
@@ -332,12 +369,12 @@ public class Process {
 					
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 			}
 			break;
 		case GUILD_BATTLE:
 			try {
-				if (GuildBattle.run()) {
+				if (action(GuildBattle.class).run()) {
 					String result = "";
 					if (!info.events.empty()) {
 						switch (info.events.peek()) {
@@ -365,57 +402,57 @@ public class Process {
 					
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 			}
 			break;
 		case GUILD_TOP:
 			try {
-				if (GuildTop.run()) {
+				if (action(GuildTop.class).run()) {
 					// nothing to do
 				} else {
-					if (info.NoFairy && Info.nightModeSwitch) Go.log("Night Mode");
+					if (info.NoFairy && info.nightModeSwitch) Go.log("Night Mode");
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 			}
 			break;
 		case GET_FAIRY_REWARD:
 			try {
-				if (GetFairyReward.run()) {
-					Go.log(ErrorData.text);
-					ErrorData.clear();
+				if (action(GetFairyReward.class).run()) {
+					Go.log(errorData.text);
+					errorData.clear();
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 			}
 			break;
 		case LV_UP:
 			try {
-				if (LvUp.run()) {
-					Go.log(String.format("Level UP! AP:%d BC:%d", Process.info.apMax, Process.info.bcMax));
+				if (action(LvUp.class).run()) {
+					Go.log(String.format("Level UP! AP:%d BC:%d", info.apMax, info.bcMax));
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 			}
 			break;
 		
 		case SELL_CARD:
 			try {
-				if (SellCard.run()) {
-					Go.log(ErrorData.text);
-					ErrorData.clear();
+				if (action(SellCard.class).run()) {
+					Go.log(errorData.text);
+					errorData.clear();
 				} else {
 					Go.log("Something wrong");
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 			}
 			break;
 		case USE:
 			try {
-				if (Use.run()) {
-					Go.log(ErrorData.text);
-					ErrorData.clear();
+				if (action(Use.class).run()) {
+					Go.log(errorData.text);
+					errorData.clear();
 					Go.log(String.format("Bottles: FA:%d, HA:%d, HA(T):%d, FB:%d, HB:%d, HB(T):%d",
 							info.fullAp, info.halfAp, info.halfApToday,
 							info.fullBc, info.halfBc, info.halfBcToday));
@@ -423,32 +460,32 @@ public class Process {
 					Go.log("Sth Wrong @USE");
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 			}
 			break;
 		case PFB_GOOD:
 			try {
-				if (PFBGood.run()) {
-					Go.log(ErrorData.text);
-					ErrorData.clear();
+				if (action(PFBGood.class).run()) {
+					Go.log(errorData.text);
+					errorData.clear();
 				} else {
 					Go.log("Something wrong");
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 				
 			}
 			break;
 		case RECV_PFB_GOOD:
 			try {
-				if (RecvPFBGood.run()) {
-					Go.log(ErrorData.text);
-					ErrorData.clear();
+				if (action(RecvPFBGood.class).run()) {
+					Go.log(errorData.text);
+					errorData.clear();
 				} else {
 					Go.log("Something wrong");
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 			}
 			break;
 		case NOTHING:
@@ -473,14 +510,14 @@ public class Process {
 		}
 	}
 	
-	public static Document ParseXMLBytes(byte[] in) throws Exception {
+	public Document ParseXMLBytes(byte[] in) throws Exception {
 		ByteArrayInputStream bais = null;
 		try {
 			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 			DocumentBuilder builder = factory.newDocumentBuilder();
 			bais = new ByteArrayInputStream(in);
 			Document document = builder.parse(bais);
-			if(Info.debug) doc2FormatString(document); //输出xml
+			if(info.debug) doc2FormatString(document); //输出xml
 			return document;
 		} catch (Exception e) {
 			throw e;

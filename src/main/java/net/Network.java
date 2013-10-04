@@ -21,15 +21,18 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.params.HttpParams;
 
+import walker.Info;
+
 
 public class Network {
 	private static final String Auth = "eWa25vrE";
 	private static final String Key = "2DbcAh3G";
 	
-	public static String UserAgent = "";
+	private Info info;
 	private DefaultHttpClient client;
 	
-	public Network() {
+	public Network(Info info) {
+		this.info = info;
 		client = new DefaultHttpClient();
 		HttpParams hp = client.getParams();
 		hp.setParameter("http.socket.timeout", 0x7530);
@@ -44,7 +47,7 @@ public class Network {
 			if (UseDefaultKey) {
 				result.add(new BasicNameValuePair(n.getName(),Crypto.Encrypt2Base64NoKey(n.getValue())));
 			} else {
-				result.add(new BasicNameValuePair(n.getName(),Crypto.Encrypt2Base64WithKey(n.getValue())));
+				result.add(new BasicNameValuePair(n.getName(),Crypto.Encrypt2Base64WithKey(n.getValue(), info)));
 			}	
 		}
 		return result;
@@ -54,7 +57,7 @@ public class Network {
 		List<NameValuePair> post = RequestProcess(content,UseDefaultKey);
 		
 		HttpPost hp = new HttpPost(url);
-		hp.setHeader("User-Agent", UserAgent);
+		hp.setHeader("User-Agent", info.UserAgent);
 		hp.setHeader("Accept-Encoding", "gzip, deflate");
 		hp.setEntity(new UrlEncodedFormEntity(post,"UTF-8"));
 		
@@ -74,13 +77,13 @@ public class Network {
 				if (UseDefaultKey) {
 					return Crypto.DecryptNoKey(b);
 				} else {
-					return Crypto.DecryptWithKey(b);
+					return Crypto.DecryptWithKey(b, info);
 				}
 			} catch (Exception ex) {
 				if (!UseDefaultKey) {
 					return Crypto.DecryptNoKey(b);
 				} else {
-					return Crypto.DecryptWithKey(b);
+					return Crypto.DecryptWithKey(b, info);
 				}
 			}
 		} 

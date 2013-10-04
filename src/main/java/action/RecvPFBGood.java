@@ -10,37 +10,37 @@ import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 import org.w3c.dom.Document;
 
-import walker.ErrorData;
-import walker.Process;
+import walker.ErrorData.DataType;
+import walker.ErrorData.ErrorType;
 import action.ActionRegistry.Action;
 
-public class RecvPFBGood {
+public class RecvPFBGood extends AbstractAction{
 	public static final Action Name = Action.RECV_PFB_GOOD;
-	private static byte[] response;
+	private byte[] response;
 	//private static final String URL_FAIRY_HISTORY = "http://web.million-arthurs.com/connect/app/private_fairy/private_fairy_history?cyt=1";
 	private static final String URL_PRIVATE_BATTLE_TOP = "http://web.million-arthurs.com/connect/app/private_fairy/private_fairy_top?cyt=1";
-	public static boolean run() throws Exception {
+	public boolean run() throws Exception {
 		Document doc;
 			try {
 				ArrayList<NameValuePair> al = new ArrayList<NameValuePair>();
-				al.add(new BasicNameValuePair("serial_id", Process.info.fairy.SerialId));
-				al.add(new BasicNameValuePair("user_id", Process.info.fairy.UserId));
-				response = Process.network.ConnectToServer(URL_PRIVATE_BATTLE_TOP,
+				al.add(new BasicNameValuePair("serial_id", process.info.fairy.SerialId));
+				al.add(new BasicNameValuePair("user_id", process.info.fairy.UserId));
+				response = process.network.ConnectToServer(URL_PRIVATE_BATTLE_TOP,
 						al, false);
 			} catch (Exception ex) {
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.currentErrorType = ErrorData.ErrorType.ConnectionError;
-				ErrorData.text = ex.getMessage();
+				errorData.currentDataType = DataType.text;
+				errorData.currentErrorType = ErrorType.ConnectionError;
+				errorData.text = ex.getMessage();
 				throw ex;
 			}
 			
 
 			try {
-				doc = Process.ParseXMLBytes(response);
+				doc = process.ParseXMLBytes(response);
 			} catch (Exception ex) {
-				ErrorData.currentDataType = ErrorData.DataType.bytes;
-				ErrorData.currentErrorType = ErrorData.ErrorType.RecvPFBGoodDataError;
-				ErrorData.bytes = response;
+				errorData.currentDataType = DataType.bytes;
+				errorData.currentErrorType = ErrorType.RecvPFBGoodDataError;
+				errorData.bytes = response;
 				throw ex;
 			}
 
@@ -51,15 +51,15 @@ public class RecvPFBGood {
 			}
 	}
 	
-	private static boolean parse(Document doc) throws Exception {
+	private boolean parse(Document doc) throws Exception {
 		XPathFactory factory = XPathFactory.newInstance();
 		XPath xpath = factory.newXPath();
 
 		try {
 			if (!xpath.evaluate("/response/header/error/code", doc).equals("0")) {
-				ErrorData.currentErrorType = ErrorData.ErrorType.RecvPFBGoodResponse;
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.text = xpath.evaluate(
+				errorData.currentErrorType = ErrorType.RecvPFBGoodResponse;
+				errorData.currentDataType = DataType.text;
+				errorData.text = xpath.evaluate(
 						"/response/header/error/message", doc);
 				return false;
 			}
@@ -70,15 +70,15 @@ public class RecvPFBGood {
 				msg = xpath.evaluate("/response/body/private_fairy_top/recover_by_like/message", doc);
 				add = xpath.evaluate("/response/body/private_fairy_top/recover_by_like/recover_point", doc);
 
-				ErrorData.currentErrorType = ErrorData.ErrorType.RecvPFBGoodResponse;
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.text = String.format("%s\n收赞回复%s点BC...", msg, add);
+				errorData.currentErrorType = ErrorType.RecvPFBGoodResponse;
+				errorData.currentDataType = DataType.text;
+				errorData.text = String.format("%s\n收赞回复%s点BC...", msg, add);
 			}
 		} catch (Exception ex) {
-			if (ErrorData.currentErrorType != ErrorData.ErrorType.none) throw ex;
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.RecvPFBGoodDataParseError;
-			ErrorData.bytes = response;
+			if (errorData.currentErrorType != ErrorType.none) throw ex;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.RecvPFBGoodDataParseError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		return true;

@@ -10,11 +10,11 @@ import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 import org.w3c.dom.Document;
 
-import walker.ErrorData;
+import walker.ErrorData.DataType;
+import walker.ErrorData.ErrorType;
 import walker.Info;
-import walker.Process;
 
-public class Login {
+public class Login extends AbstractAction {
 	public static final ActionRegistry.Action Name = ActionRegistry.Action.LOGIN;
 	// URLs
 	private static final String URL_CHECK_INSPECTION = "http://web.million-arthurs.com/connect/app/check_inspection?cyt=1";
@@ -23,9 +23,9 @@ public class Login {
 	public static final String ERR_CHECK_INSPECTION = "Login/check_inspection";
 	public static final String ERR_LOGIN = "Login/login";
 	
-	private static byte[] result;
+	private byte[] result;
 	
-	public static boolean run() throws Exception {
+	public boolean run() throws Exception {
 		try {
 			return run(true);
 		} catch (Exception ex) {
@@ -33,36 +33,36 @@ public class Login {
 		}
 	}
 	
-	public static boolean run(boolean jump) throws Exception {
+	public boolean run(boolean jump) throws Exception {
 		Document doc;
 		if (!jump) {
 			try {
-				result = Process.network.ConnectToServer(URL_CHECK_INSPECTION, new ArrayList<NameValuePair>(), true);
+				result = process.network.ConnectToServer(URL_CHECK_INSPECTION, new ArrayList<NameValuePair>(), true);
 			} catch (Exception ex) {
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.currentErrorType = ErrorData.ErrorType.ConnectionError;
-				ErrorData.text = ERR_CHECK_INSPECTION;
+				errorData.currentDataType = DataType.text;
+				errorData.currentErrorType = ErrorType.ConnectionError;
+				errorData.text = ERR_CHECK_INSPECTION;
 				throw ex;
 			}
 		}
 		ArrayList<NameValuePair> al = new ArrayList<NameValuePair>();
-		al.add(new BasicNameValuePair("login_id",Info.LoginId));
-		al.add(new BasicNameValuePair("password",Info.LoginPw));
+		al.add(new BasicNameValuePair("login_id",process.info.LoginId));
+		al.add(new BasicNameValuePair("password",process.info.LoginPw));
 		try {
-			result = Process.network.ConnectToServer(URL_LOGIN, al,true);
+			result = process.network.ConnectToServer(URL_LOGIN, al, true);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.text;
-			ErrorData.currentErrorType = ErrorData.ErrorType.ConnectionError;
-			ErrorData.text = ex.getMessage();
+			errorData.currentDataType = DataType.text;
+			errorData.currentErrorType = ErrorType.ConnectionError;
+			errorData.text = ex.getMessage();
 			ex.printStackTrace();
 			throw ex;
 		}
 		try {
-			doc = Process.ParseXMLBytes(result);
+			doc = process.ParseXMLBytes(result);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.text;
-			ErrorData.currentErrorType = ErrorData.ErrorType.LoginDataError;
-			ErrorData.text = ERR_LOGIN;
+			errorData.currentDataType = DataType.text;
+			errorData.currentErrorType = ErrorType.LoginDataError;
+			errorData.text = ERR_LOGIN;
 			throw ex;
 		}
 		try {
@@ -72,14 +72,14 @@ public class Login {
 		}
 	}
 	
-	private static boolean parse(Document doc) throws Exception {
+	private boolean parse(Document doc) throws Exception {
 		try {
 			XPathFactory factory = XPathFactory.newInstance();
 			XPath xpath = factory.newXPath();
 			if (!xpath.evaluate("/response/header/error/code", doc).equals("0")) {
-				ErrorData.currentErrorType = ErrorData.ErrorType.LoginResponse;
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.text = xpath.evaluate("/response/header/error/message", doc);
+				errorData.currentErrorType = ErrorType.LoginResponse;
+				errorData.currentDataType = DataType.text;
+				errorData.text = xpath.evaluate("/response/header/error/message", doc);
 				return false;
 			}
 			
@@ -88,22 +88,22 @@ public class Login {
 			}
 			
 			if (!xpath.evaluate("//fairy_appearance", doc).equals("0")) {
-				Process.info.events.push(Info.EventType.fairyAppear);
+				process.info.events.push(Info.EventType.fairyAppear);
 			}
 			
-			Process.info.userId = xpath.evaluate("//login/user_id", doc);
-			ParseUserDataInfo.parse(doc);
-			ParseCardList.parse(doc);
+			process.info.userId = xpath.evaluate("//login/user_id", doc);
+			ParseUserDataInfo.parse(doc, process);
+			ParseCardList.parse(doc, process);
 			
-			Process.info.SetTimeoutByAction(Name);
+			process.info.SetTimeoutByAction(Name);
 			
-			Process.info.cardMax = Integer.parseInt(xpath.evaluate("//your_data/max_card_num",doc));
+			process.info.cardMax = Integer.parseInt(xpath.evaluate("//your_data/max_card_num",doc));
 			
 		} catch (Exception ex) {
-			if (ErrorData.currentErrorType != ErrorData.ErrorType.none) throw ex;
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.LoginDataParseError;
-			ErrorData.bytes = result;
+			if (errorData.currentErrorType != ErrorType.none) throw ex;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.LoginDataParseError;
+			errorData.bytes = result;
 			throw ex;
 		}
 		return true;

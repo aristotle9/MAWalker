@@ -9,37 +9,37 @@ import javax.xml.xpath.XPathFactory;
 import org.apache.http.NameValuePair;
 import org.w3c.dom.Document;
 
-import walker.ErrorData;
+import walker.ErrorData.DataType;
+import walker.ErrorData.ErrorType;
 import walker.Info;
-import walker.Process;
 import action.ActionRegistry.Action;
 
-public class GuildTop {
+public class GuildTop extends AbstractAction {
 	public static final Action Name = Action.GUILD_TOP;
 	private static final String URL_GUILD_TOP = "http://web.million-arthurs.com/connect/app/guild/guild_top?cyt=1";
 	
-	private static byte[] response;
+	private byte[] response;
 	
-	public static boolean run() throws Exception {
+	public boolean run() throws Exception {
 		ArrayList<NameValuePair> post = new ArrayList<NameValuePair>();
 		try {
-			response = Process.network.ConnectToServer(URL_GUILD_TOP, post, false);
+			response = process.network.ConnectToServer(URL_GUILD_TOP, post, false);
 		} catch (Exception ex) {
 			//if (ex.getMessage().equals("302")) 
 			// 上面的是为了截获里图跳转
-			ErrorData.currentDataType = ErrorData.DataType.text;
-			ErrorData.currentErrorType = ErrorData.ErrorType.ConnectionError;
-			ErrorData.text = ex.getMessage();
+			errorData.currentDataType = DataType.text;
+			errorData.currentErrorType = ErrorType.ConnectionError;
+			errorData.text = ex.getMessage();
 			throw ex;
 		}
 		
 		Document doc;
 		try {
-			doc = Process.ParseXMLBytes(response);
+			doc = process.ParseXMLBytes(response);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.GuildTopDataError;
-			ErrorData.bytes = response;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.GuildTopDataError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		
@@ -49,38 +49,38 @@ public class GuildTop {
 		
 		try {
 			if (!xpath.evaluate("/response/header/error/code", doc).equals("0")) {
-				ErrorData.currentErrorType = ErrorData.ErrorType.GuildTopResponse;
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.text = xpath.evaluate("/response/header/error/message", doc);
+				errorData.currentErrorType = ErrorType.GuildTopResponse;
+				errorData.currentDataType = DataType.text;
+				errorData.text = xpath.evaluate("/response/header/error/message", doc);
 				return false;
 			}
 
 			if (GuildDefeat.judge(doc)) {
-				Process.info.events.push(Info.EventType.guildTopRetry);
+				process.info.events.push(Info.EventType.guildTopRetry);
 				return false;
 			}
 			
 			if ((Boolean)xpath.evaluate("count(//guild_top_no_fairy)>0", doc, XPathConstants.BOOLEAN)) {
 				// 深夜没有外敌战
-				Process.info.NoFairy = true;
+				process.info.NoFairy = true;
 				return false;
 			} else {
-				Process.info.NoFairy = false;
+				process.info.NoFairy = false;
 			}
 			
-			Process.info.gfairy.FairyName = xpath.evaluate("//fairy/name", doc);
-			Process.info.gfairy.SerialId = xpath.evaluate("//fairy/serial_id", doc);
-			Process.info.gfairy.GuildId = xpath.evaluate("//fairy/discoverer_id", doc);
-			Process.info.gfairy.FairyLevel = xpath.evaluate("//fairy/lv", doc);
+			process.info.gfairy.FairyName = xpath.evaluate("//fairy/name", doc);
+			process.info.gfairy.SerialId = xpath.evaluate("//fairy/serial_id", doc);
+			process.info.gfairy.GuildId = xpath.evaluate("//fairy/discoverer_id", doc);
+			process.info.gfairy.FairyLevel = xpath.evaluate("//fairy/lv", doc);
 			
-			Process.info.events.push(Info.EventType.guildBattle);
+			process.info.events.push(Info.EventType.guildBattle);
 			
 			return true;
 		} catch (Exception ex) {
-			if (ErrorData.currentErrorType != ErrorData.ErrorType.none) throw ex;
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.GuildTopDataParseError;
-			ErrorData.bytes = response;
+			if (errorData.currentErrorType != ErrorType.none) throw ex;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.GuildTopDataParseError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		

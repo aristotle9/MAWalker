@@ -11,52 +11,52 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-import walker.ErrorData;
+import walker.ErrorData.DataType;
+import walker.ErrorData.ErrorType;
 import walker.Go;
-import walker.Process;
 import action.ActionRegistry.Action;
 
-public class PFBGood {
+public class PFBGood extends AbstractAction{
 	public static final Action Name = Action.PFB_GOOD;
 
 	private static final String URL_PFB_GOOD = "http://web.million-arthurs.com/connect/app/private_fairy/private_fairy_battle_good?cyt=1";
 	private static final String URL_FAIRY_HISTORY = "http://web.million-arthurs.com/connect/app/private_fairy/private_fairy_history?cyt=1";
-	private static byte[] response;
-	private static String serial_Id;
+	private byte[] response;
+	private String serial_Id;
 
-	public static boolean run() throws Exception {
+	public boolean run() throws Exception {
 		Document doc;
 		Boolean set = false;
-		//for (info.PFBGood pg : Process.info.PFBGoodList) {
-		while (!Process.info.PFBGoodList.empty()) { 
-			info.PFBGood pg = Process.info.PFBGoodList.pop();
+		//for (info.PFBGood pg : info.PFBGoodList) {
+		while (!process.info.PFBGoodList.empty()) { 
+			info.PFBGood pg = process.info.PFBGoodList.pop();
 			try {
 				serial_Id = pg.serialId;
 				ArrayList<NameValuePair> al = new ArrayList<NameValuePair>();
 				al.add(new BasicNameValuePair("serial_id", pg.serialId));
 				al.add(new BasicNameValuePair("user_id", pg.userId));
-				response = Process.network.ConnectToServer(URL_FAIRY_HISTORY,
+				response = process.network.ConnectToServer(URL_FAIRY_HISTORY,
 						al, false);
 			} catch (Exception ex) {
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.currentErrorType = ErrorData.ErrorType.ConnectionError;
-				ErrorData.text = ex.getMessage();
+				errorData.currentDataType = DataType.text;
+				errorData.currentErrorType = ErrorType.ConnectionError;
+				errorData.text = ex.getMessage();
 				throw ex;
 			}
 
 			try {
-				doc = Process.ParseXMLBytes(response);
+				doc = process.ParseXMLBytes(response);
 			} catch (Exception ex) {
-				ErrorData.currentDataType = ErrorData.DataType.bytes;
-				ErrorData.currentErrorType = ErrorData.ErrorType.FairyHistoryDataError;
-				ErrorData.bytes = response;
+				errorData.currentDataType = DataType.bytes;
+				errorData.currentErrorType = ErrorType.FairyHistoryDataError;
+				errorData.bytes = response;
 				throw ex;
 			}
 
 			try {
 				set = parse(doc);
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) {
+				if (errorData.currentErrorType == ErrorType.none) {
 					throw ex;
 				}
 			}
@@ -65,16 +65,16 @@ public class PFBGood {
 		return set;
 	}
 
-	private static boolean parse(Document doc) throws Exception {
+	private boolean parse(Document doc) throws Exception {
 
 		XPathFactory factory = XPathFactory.newInstance();
 		XPath xpath = factory.newXPath();
 
 		try {
 			if (!xpath.evaluate("/response/header/error/code", doc).equals("0")) {
-				ErrorData.currentErrorType = ErrorData.ErrorType.FairyHistoryResponse;
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.text = xpath.evaluate(
+				errorData.currentErrorType = ErrorType.FairyHistoryResponse;
+				errorData.currentDataType = DataType.text;
+				errorData.text = xpath.evaluate(
 						"/response/header/error/message", doc);
 				return false;
 			}
@@ -88,7 +88,7 @@ public class PFBGood {
 				do {
 					if (f.getNodeName().equals("user_id")) {
 						String str = f.getFirstChild().getNodeValue();
-						if (!str.equals(Process.info.userId))
+						if (!str.equals(process.info.userId))
 							user_id += f.getFirstChild().getNodeValue() + ",";
 					}
 					f = f.getNextSibling();
@@ -97,47 +97,47 @@ public class PFBGood {
 			user_id = user_id.substring(0, user_id.length() - 1);
 			try {
 				if (run2(serial_Id, user_id)) {
-					Go.log(ErrorData.text);
-					ErrorData.clear();
+					Go.log(errorData.text);
+					errorData.clear();
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none)
+				if (errorData.currentErrorType == ErrorType.none)
 					throw ex;
 			}
-			Process.info.SetTimeoutByAction(Name);
+			process.info.SetTimeoutByAction(Name);
 
 		} catch (Exception ex) {
-			if (ErrorData.currentErrorType != ErrorData.ErrorType.none)
+			if (errorData.currentErrorType != ErrorType.none)
 				throw ex;
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.FairyHistoryDataParseError;
-			ErrorData.bytes = response;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.FairyHistoryDataParseError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		return true;
 	}
 
-	public static boolean run2(String serialId, String userId) throws Exception {
+	public boolean run2(String serialId, String userId) throws Exception {
 		Document doc;
 		try {
 			ArrayList<NameValuePair> al = new ArrayList<NameValuePair>();
 			al.add(new BasicNameValuePair("dialog", "1"));
 			al.add(new BasicNameValuePair("serial_id", serialId));
 			al.add(new BasicNameValuePair("user_id", userId));
-			response = Process.network.ConnectToServer(URL_PFB_GOOD, al, false);
+			response = process.network.ConnectToServer(URL_PFB_GOOD, al, false);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.text;
-			ErrorData.currentErrorType = ErrorData.ErrorType.ConnectionError;
-			ErrorData.text = ex.getMessage();
+			errorData.currentDataType = DataType.text;
+			errorData.currentErrorType = ErrorType.ConnectionError;
+			errorData.text = ex.getMessage();
 			throw ex;
 		}
 
 		try {
-			doc = Process.ParseXMLBytes(response);
+			doc = process.ParseXMLBytes(response);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.PFB_GoodDataError;
-			ErrorData.bytes = response;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.PFB_GoodDataError;
+			errorData.bytes = response;
 			throw ex;
 		}
 
@@ -146,19 +146,19 @@ public class PFBGood {
 			XPath xpath = factory.newXPath();
 			if (!xpath.evaluate("/response/header/error/code", doc).equals(
 					"1010")) {
-				ErrorData.currentErrorType = ErrorData.ErrorType.PFB_GoodResponse;
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.text = xpath.evaluate(
+				errorData.currentErrorType = ErrorType.PFB_GoodResponse;
+				errorData.currentDataType = DataType.text;
+				errorData.text = xpath.evaluate(
 						"/response/header/error/message", doc);
 				return false;
 			} else {
-				ErrorData.text = xpath.evaluate(
+				errorData.text = xpath.evaluate(
 						"/response/header/error/message", doc);
 				return true;
 			}
 
 		} catch (Exception ex) {
-			if (ErrorData.currentErrorType == ErrorData.ErrorType.none) {
+			if (errorData.currentErrorType == ErrorType.none) {
 				throw ex;
 			}
 		}

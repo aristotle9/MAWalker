@@ -11,14 +11,13 @@ import javax.xml.xpath.XPathFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
-import walker.Process;
 public class ParseCardList {
-	public static void parse(Document doc) throws NumberFormatException, XPathExpressionException {
+	public static void parse(Document doc, walker.Process process) throws NumberFormatException, XPathExpressionException {
 		XPathFactory factory = XPathFactory.newInstance();
 		XPath xpath = factory.newXPath();
 
 		int cardCount = ((NodeList)xpath.evaluate("//owner_card_list/user_card", doc, XPathConstants.NODESET)).getLength();
-		if (cardCount > 0) Process.info.cardList = new ArrayList<Card>();
+		if (cardCount > 0) process.info.cardList = new ArrayList<Card>();
 		for (int i = 1; i < cardCount + 1; i++) {
 			Card c = new Card();
 			String p = String.format("//owner_card_list/user_card[%d]", i);
@@ -32,7 +31,7 @@ public class ParseCardList {
 			c.atk = Integer.parseInt(xpath.evaluate(p+"/power", doc));
 			c.plusLimit = Integer.parseInt(xpath.evaluate(p+"/plus_limit_count", doc));
 			c.exist = true;
-			Process.info.cardList.add(c);
+			process.info.cardList.add(c);
 		}
 		
 	}

@@ -9,48 +9,74 @@ import java.util.Date;
 import walker.Info.EventType;
 import net.Crypto;
 
-public class Go {
+public class Go implements Runnable {
 
+	private ErrorData errorData;
+	private Info info;
+	
+	public Go(Info info, ErrorData errorData) {
+		this.info = info;
+		this.errorData = errorData;
+	}
+	
+	public Go(Info info) {
+		this.info = info;
+		this.errorData = new ErrorData();
+	}
+	
+	@Override
+	public void run() {
+		// auto mode
+		while (true) {
+			Process proc = new Process(info, errorData);
+			Profile2 prof = new Profile2(proc);
+			while(true) {
+				try {
+					switch (info.Profile) {
+					case 1:
+						proc.auto();
+						break;
+					case 2:
+						prof.auto();
+						break;
+					}
+				} catch (Exception ex) {
+					Go.log(ex.getMessage());
+					proc.info.events.add(EventType.cookieOutOfDate);
+					Go.log("Restart");
+				}
+			}
+		}
+	}
+	
 	public static void main(String[] args) {
+		
+		ErrorData errorData = new ErrorData();
+		Info info = new Info();
 		if (args.length < 1)  {
 			printHelp();
 			return;
 		}
 		try {
-			GetConfig.parse(Process.ParseXMLBytes1(ReadFileAll(args[0])));
+			GetConfig.parse(walker.Process.ParseXMLBytes1(ReadFileAll(args[0])), info, errorData);
 		} catch (Exception e) {
 			e.printStackTrace();
 			return;
 		}
+		
 		if (args.length < 3) {
 			System.out.println(Version.strVersion());
 			System.out.println(Version.strThanks());
-			Go.log(String.format("Read cards that can be sold (%d).", Info.CanBeSold.size()));
+			Go.log(String.format("Read cards that can be sold (%d).", info.CanBeSold.size()));
 		}
+		
 		if (args.length == 1) {
-			// auto mode
-			while (true) {
-				Process proc = new Process();
-				Profile2 prof = new Profile2();
-				while(true) {
-					try {
-						switch (Info.Profile) {
-						case 1:
-							proc.auto();
-							break;
-						case 2:
-							prof.auto();
-							break;
-						}
-					} catch (Exception ex) {
-						Go.log(ex.getMessage());
-						Process.info.events.add(EventType.cookieOutOfDate);
-						Go.log("Restart");
-					}
-				}
-			}
-
+		
+			Go go = new Go(info, errorData);
+			go.run();//run in current thread
+			
 		} else if (args.length == 2) {
+			
 			if (args[1].equals("-m")) {
 				// manual operation
 				System.out.println("come soon");
@@ -63,7 +89,7 @@ public class Go {
 					if (args[1].charAt(2) == '1') {
 						System.out.println(new String(Crypto.DecryptNoKey(ReadFileAll(args[2]))));
 					} else if (args[1].charAt(2) == '2') {
-						System.out.println(new String(Crypto.DecryptWithKey(ReadFileAll(args[2]))));						
+						System.out.println(new String(Crypto.DecryptWithKey(ReadFileAll(args[2]), info)));						
 					}
 				} else if (args[1].equals("-t")) {
 					// 用作测试使用
@@ -75,7 +101,7 @@ public class Go {
 					if (args[1].charAt(2) == '1') {
 						System.out.println(new String(Crypto.DecryptBase64NoKey2Str(args[2])));
 					} else if (args[1].charAt(2) == '2') {
-						System.out.println(new String(Crypto.DecryptBase64WithKey2Str(args[2])));
+						System.out.println(new String(Crypto.DecryptBase64WithKey2Str(args[2], info)));
 					}
 				}
 			} catch (Exception ex) {

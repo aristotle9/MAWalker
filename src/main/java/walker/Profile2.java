@@ -3,6 +3,7 @@ package walker;
 import java.util.ArrayList;
 import java.util.List;
 
+import walker.ErrorData.ErrorType;
 import walker.Info.TimeoutEntry;
 import action.ActionRegistry;
 import action.Explore;
@@ -16,18 +17,24 @@ import action.RecvPFBGood;
 import action.SellCard;
 import action.ActionRegistry.Action;
 
-public class Profile2 {
+final public class Profile2 {
 	
-	public Profile2() {
+	private ErrorData errorData;
+	private Process process;
+	
+	public Profile2(Process process) {
+		
+		this.process = process;
+		this.errorData = process.errorData;
 	}
 	
 	public void auto() throws Exception {
 		try {
-			if (ErrorData.currentErrorType != ErrorData.ErrorType.none) {
+			if (errorData.currentErrorType != ErrorType.none) {
 				rescue();
 			} else {
 				long start = System.currentTimeMillis();
-				execute(Think.doIt(getPossibleAction()));
+				execute(process.think.doIt(getPossibleAction()));
 				long delta = System.currentTimeMillis() - start;
 				if (delta < 15000) Thread.sleep(15000 - delta);
 			}
@@ -37,24 +44,24 @@ public class Profile2 {
 	}
 	
 	private void rescue() {
-		Go.log(ErrorData.currentErrorType.toString());
-		switch (ErrorData.currentDataType) {
+		Go.log(errorData.currentErrorType.toString());
+		switch (errorData.currentDataType) {
 		case bytes:
-			Go.log(new String(ErrorData.bytes));
+			Go.log(new String(errorData.bytes));
 			break;
 		case text:
-			Go.log(new String(ErrorData.text));
+			Go.log(new String(errorData.text));
 			break;
 		default:
 			break;
 		}
-		ErrorData.clear();
+		errorData.clear();
 	}
 	
 	private List<ActionRegistry.Action> getPossibleAction() {
 		ArrayList<ActionRegistry.Action> result = new ArrayList<ActionRegistry.Action>();
-		if (Process.info.events.size() != 0) {
-			switch(Process.info.events.peek()) {
+		if (process.info.events.size() != 0) {
+			switch(process.info.events.peek()) {
 			case notLoggedIn:
 			case cookieOutOfDate:
 				result.add(ActionRegistry.Action.LOGIN);
@@ -91,23 +98,23 @@ public class Profile2 {
 			case gotoFloor:
 				result.add(Action.GOTO_FLOOR);
 			default:
-				Go.log("Profile2 Ignore: " + Process.info.events.peek());
+				Go.log("Profile2 Ignore: " + process.info.events.peek());
 				break;
 			}
-			Process.info.events.pop();
+			process.info.events.pop();
 			return result;
 		}
-		ArrayList<TimeoutEntry> te = Process.info.CheckTimeout();
+		ArrayList<TimeoutEntry> te = process.info.CheckTimeout();
 		for (TimeoutEntry e : te) {
 			switch (e) {
 			case apbc:
-				Process.info.events.push(Info.EventType.needAPBCInfo);
+				process.info.events.push(Info.EventType.needAPBCInfo);
 				break;
 			case login:
-				Process.info.events.push(Info.EventType.cookieOutOfDate);
+				process.info.events.push(Info.EventType.cookieOutOfDate);
 				break;
 			case map:
-				Process.info.events.push(Info.EventType.needFloorInfo);
+				process.info.events.push(Info.EventType.needFloorInfo);
 				break;
 			case fairy:
 			case reward:
@@ -123,145 +130,145 @@ public class Profile2 {
 		switch (action) {
 		case LOGIN:
 			try {
-				if (Login.run()) {
+				if (process.action(Login.class).run()) {
 					Go.log(String.format("User: %s, AP: %d/%d, BC: %d/%d, Card: %d/%d, ticket: %d",
-							Process.info.username, Process.info.ap, Process.info.apMax, Process.info.bc, Process.info.bcMax,
-							Process.info.cardList.size(), Process.info.cardMax, Process.info.ticket));	
-					Process.info.events.push(Info.EventType.needFloorInfo);
+							process.info.username, process.info.ap, process.info.apMax, process.info.bc, process.info.bcMax,
+							process.info.cardList.size(), process.info.cardMax, process.info.ticket));	
+					process.info.events.push(Info.EventType.needFloorInfo);
 				} else {
-					Process.info.events.push(Info.EventType.notLoggedIn);
+					process.info.events.push(Info.EventType.notLoggedIn);
 				}
 			} catch (Exception ex) {
-				Process.info.events.push(Info.EventType.notLoggedIn);
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) {
+				process.info.events.push(Info.EventType.notLoggedIn);
+				if (errorData.currentErrorType == ErrorType.none) {
 					throw ex;
 				}
 			}
 			break;
 		case GET_FLOOR_INFO:
 			try {
-				if (GetFloorInfo.run()) {
+				if (process.action(GetFloorInfo.class).run()) {
 					Go.log(String.format("Area(%d) Front: %s>%s@c=%d", 
-							Process.info.area.size(), 
-							Process.info.area.get(Integer.parseInt(Process.info.front.areaId)).areaName, 
-							Process.info.front.floorId, 
-							Process.info.front.cost));
+							process.info.area.size(), 
+							process.info.area.get(Integer.parseInt(process.info.front.areaId)).areaName, 
+							process.info.front.floorId, 
+							process.info.front.cost));
 				}
 				
 			} catch (Exception ex) {
 				if (ex.getMessage().equals("302")) {
-					Process.info.events.push(Info.EventType.innerMapJump);
-					ErrorData.clear();
+					process.info.events.push(Info.EventType.innerMapJump);
+					errorData.clear();
 				} else {
-					if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+					if (errorData.currentErrorType == ErrorType.none) throw ex;
 				}
 			}
 			break;
 		case GOTO_FLOOR:
 			try {
-				if (GotoFloor.run()) {
+				if (process.action(GotoFloor.class).run()) {
 					Go.log(String.format("Goto: AP: %d/%d, BC: %d/%d, Front:%s>%s",
-							Process.info.ap, Process.info.apMax, Process.info.bc, Process.info.bcMax,
-							Process.info.area.get(Integer.parseInt(Process.info.front.areaId)).areaName, 
-							Process.info.front.floorId));	
+							process.info.ap, process.info.apMax, process.info.bc, process.info.bcMax,
+							process.info.area.get(Integer.parseInt(process.info.front.areaId)).areaName, 
+							process.info.front.floorId));	
 				} else {
 					
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 			}
 			
 			break;
 		case PRIVATE_FAIRY_BATTLE:
 			try {
-				if (PrivateFairyBattle.run()) {
+				if (process.action(PrivateFairyBattle.class).run()) {
 					String result = "";
-					if (!Process.info.events.empty()) {
-						switch (Process.info.events.peek()) {
+					if (!process.info.events.empty()) {
+						switch (process.info.events.peek()) {
 						case fairyBattleEnd:
 							result = "Too Late";
-							Process.info.events.pop();
+							process.info.events.pop();
 							break;
 						case fairyBattleLose:
 							result = "Lose";
-							Process.info.events.pop();
+							process.info.events.pop();
 							break;
 						case fairyBattleWin:
 							result = "Win";
-							Process.info.events.pop();
+							process.info.events.pop();
 							break;
 						default:
 							break;
 						}
 					}
 					String str = String.format("PFB name=%s, Lv: %s, bc: %d/%d, ap: %d/%d, ticket: %d, %s",
-							Process.info.fairy.FairyName, Process.info.fairy.FairyLevel, Process.info.bc, Process.info.bcMax, Process.info.ap, Process.info.apMax, 
-							Process.info.ticket, result);
-					if (Process.info.gather != -1) str += String.format(", gather=%d", Process.info.gather);
+							process.info.fairy.FairyName, process.info.fairy.FairyLevel, process.info.bc, process.info.bcMax, process.info.ap, process.info.apMax, 
+							process.info.ticket, result);
+					if (process.info.gather != -1) str += String.format(", gather=%d", process.info.gather);
 					Go.log(str);
 				} else {
 					
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 			}
 			break;
 		case EXPLORE:
 			try {
-				if (Explore.run()) {
-					Go.log(String.format("Explore: AP: %d, Gold+%s, Exp+%s, Progress:%s, Result: %s.", Process.info.ap,
-							Process.info.ExploreGold, Process.info.ExploreExp, Process.info.ExploreProgress, Process.info.ExploreResult));
+				if (process.action(Explore.class).run()) {
+					Go.log(String.format("Explore: AP: %d, Gold+%s, Exp+%s, Progress:%s, Result: %s.", process.info.ap,
+							process.info.ExploreGold, process.info.ExploreExp, process.info.ExploreProgress, process.info.ExploreResult));
 				} else {
 					
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 			}
 			break;
 		case LV_UP:
 			try {
-				if (LvUp.run()) {
-					Go.log(String.format("Level UP! AP:%d BC:%d", Process.info.apMax, Process.info.bcMax));
+				if (process.action(LvUp.class).run()) {
+					Go.log(String.format("Level UP! AP:%d BC:%d", process.info.apMax, process.info.bcMax));
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 			}
 			break;
 		case SELL_CARD:
 			try {
-				if (SellCard.run()) {
-					Go.log(ErrorData.text);
-					ErrorData.clear();
+				if (process.action(SellCard.class).run()) {
+					Go.log(errorData.text);
+					errorData.clear();
 				} else {
 					Go.log("Something wrong");
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 			}
 			break;
 		case PFB_GOOD:
 			try {
-				if (PFBGood.run()) {
-					Go.log(ErrorData.text);
-					ErrorData.clear();
+				if (process.action(PFBGood.class).run()) {
+					Go.log(errorData.text);
+					errorData.clear();
 				} else {
 					Go.log("Something wrong");
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 				
 			}
 			break;
 		case RECV_PFB_GOOD:
 			try {
-				if (RecvPFBGood.run()) {
-					Go.log(ErrorData.text);
-					ErrorData.clear();
+				if (process.action(RecvPFBGood.class).run()) {
+					Go.log(errorData.text);
+					errorData.clear();
 				} else {
 					Go.log("Something wrong");
 				}
 			} catch (Exception ex) {
-				if (ErrorData.currentErrorType == ErrorData.ErrorType.none) throw ex;
+				if (errorData.currentErrorType == ErrorType.none) throw ex;
 			}
 			break;
 		default:

@@ -14,36 +14,36 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-import walker.ErrorData;
+import walker.ErrorData.DataType;
+import walker.ErrorData.ErrorType;
 import walker.Go;
 import walker.Info;
-import walker.Process;
 import action.ActionRegistry.Action;
 
-public class GetFairyList {
+public class GetFairyList extends AbstractAction {
 	public static final Action Name = Action.GET_FAIRY_LIST;
 
 	private static final String URL_FAIRY_LIST = "http://web.million-arthurs.com/connect/app/private_fairy/private_fairy_select?cyt=1";
 	
-	private static byte[] response;
+	private byte[] response;
 	
-	public static boolean run() throws Exception {
+	public boolean run() throws Exception {
 		try {
-			response = Process.network.ConnectToServer(URL_FAIRY_LIST, new ArrayList<NameValuePair>(), false);
+			response = process.network.ConnectToServer(URL_FAIRY_LIST, new ArrayList<NameValuePair>(), false);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.text;
-			ErrorData.currentErrorType = ErrorData.ErrorType.ConnectionError;
-			ErrorData.text = ex.getMessage();
+			errorData.currentDataType = DataType.text;
+			errorData.currentErrorType = ErrorType.ConnectionError;
+			errorData.text = ex.getMessage();
 			throw ex;
 		}
 
 		Document doc;
 		try {
-			doc = Process.ParseXMLBytes(response);
+			doc = process.ParseXMLBytes(response);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.FairyListDataError;
-			ErrorData.bytes = response;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.FairyListDataError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		
@@ -54,7 +54,7 @@ public class GetFairyList {
 		}
 		
 	}
-	private static boolean parse(Document doc) throws Exception {
+	private boolean parse(Document doc) throws Exception {
 
 		XPathFactory factory = XPathFactory.newInstance();
 		XPath xpath = factory.newXPath();
@@ -62,15 +62,15 @@ public class GetFairyList {
 		
 		try {
 			if (!xpath.evaluate("/response/header/error/code", doc).equals("0")) {
-				ErrorData.currentErrorType = ErrorData.ErrorType.FairyListResponse;
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.text = xpath.evaluate("/response/header/error/message", doc);
+				errorData.currentErrorType = ErrorType.FairyListResponse;
+				errorData.currentDataType = DataType.text;
+				errorData.text = xpath.evaluate("/response/header/error/message", doc);
 				return false;
 			}
 			
 			if (!xpath.evaluate("//remaining_rewards", doc).equals("0")) {
-				if (Info.receiveBattlePresent) {
-					Process.info.events.push(Info.EventType.fairyReward);
+				if (process.info.receiveBattlePresent) {
+					process.info.events.push(Info.EventType.fairyReward);
 				}
 			}
 			
@@ -88,9 +88,9 @@ public class GetFairyList {
 					}
 					f = f.getNextSibling();
 				} while (f != null);
-				if(!Process.info.FairySelectUserList.containsKey(fsu.userID))
+				if(!process.info.FairySelectUserList.containsKey(fsu.userID))
 				{
-					Process.info.FairySelectUserList.put(fsu.userID,fsu);
+					process.info.FairySelectUserList.put(fsu.userID,fsu);
 				}
 			}
 		
@@ -99,7 +99,7 @@ public class GetFairyList {
 			//NodeList fairy = (NodeList)xpath.evaluate("//fairy_select/fairy_event[put_down=4]/fairy", doc, XPathConstants.NODESET);
 			NodeList fairy = (NodeList)xpath.evaluate("//fairy_select/fairy_event[put_down=1]/fairy", doc, XPathConstants.NODESET);
 			
-			Process.info.OwnFairyBattleKilled = true;
+			process.info.OwnFairyBattleKilled = true;
 			ArrayList<FairyBattleInfo> fbis = new ArrayList<FairyBattleInfo>();
 			for (int i = 0; i < fairy.getLength(); i++) {
 				Node f = fairy.item(i).getFirstChild();
@@ -123,10 +123,10 @@ public class GetFairyList {
 					}
 					f = f.getNextSibling();
 				} while (f != null);
-				if (Info.AllowAttackSameFairy) {
+				if (process.info.AllowAttackSameFairy) {
 					fbis.add(fbi);
 				} else {
-					for (FairyBattleInfo bi : Process.info.LatestFairyList) {
+					for (FairyBattleInfo bi : process.info.LatestFairyList) {
 						if (bi.equals(fbi)) {
 							// 已经舔过
 							attack_flag = true;
@@ -136,18 +136,18 @@ public class GetFairyList {
 					if (!attack_flag) fbis.add(fbi);
 				}
 				
-				if (Process.info.userId.equals(fbi.UserId)) {
-					Process.info.OwnFairyBattleKilled = false;
+				if (process.info.userId.equals(fbi.UserId)) {
+					process.info.OwnFairyBattleKilled = false;
 				}
 			}
 			
 			
-			if (fbis.size() > 1) Process.info.events.push(Info.EventType.fairyAppear); // 以便再次寻找
+			if (fbis.size() > 1) process.info.events.push(Info.EventType.fairyAppear); // 以便再次寻找
 			if (fbis.size() > 0) {
-				Process.info.events.push(Info.EventType.gotoFloor);
-				Process.info.events.push(Info.EventType.recvPFBGood);
-				Process.info.events.push(Info.EventType.fairyCanBattle);
-				Process.info.fairy = new FairyBattleInfo(fbis.get(0));
+				process.info.events.push(Info.EventType.gotoFloor);
+				process.info.events.push(Info.EventType.recvPFBGood);
+				process.info.events.push(Info.EventType.fairyCanBattle);
+				process.info.fairy = new FairyBattleInfo(fbis.get(0));
 			}
 			
 			NodeList fairy1 = (NodeList) xpath.evaluate(
@@ -169,20 +169,20 @@ public class GetFairyList {
 					}
 					f = f.getNextSibling();
 				} while (f != null);
-				Process.info.PFBGoodList.push(new info.PFBGood(serial_Id, user_Id));
+				process.info.PFBGoodList.push(new info.PFBGood(serial_Id, user_Id));
 			}
-			if(!Process.info.PFBGoodList.isEmpty())
+			if(!process.info.PFBGoodList.isEmpty())
 			{
-				Process.info.events.push(Info.EventType.PFBGood);
+				process.info.events.push(Info.EventType.PFBGood);
 			}
 
-			Process.info.SetTimeoutByAction(Name);
+			process.info.SetTimeoutByAction(Name);
 			
 		} catch (Exception ex) {
-			if (ErrorData.currentErrorType != ErrorData.ErrorType.none) throw ex;
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.FairyListDataParseError;
-			ErrorData.bytes = response;
+			if (errorData.currentErrorType != ErrorType.none) throw ex;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.FairyListDataParseError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		

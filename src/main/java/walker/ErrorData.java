@@ -13,10 +13,10 @@ public class ErrorData {
 		text,
 		none
 	}
-	public static DataType currentDataType = DataType.none;
-	public static ErrorType currentErrorType = ErrorType.none;
-	public static byte[] bytes;
-	public static String text;
+	public DataType currentDataType = DataType.none;
+	public ErrorType currentErrorType = ErrorType.none;
+	public byte[] bytes;
+	public String text;
 	
 	public enum ErrorType {
 		// 总体
@@ -80,7 +80,7 @@ public class ErrorData {
 	}
 	
 	
-	public static void clear() {
+	public void clear() {
 		bytes = null;
 		text = null;
 		currentDataType = DataType.none;

@@ -15,53 +15,73 @@ public class Crypto {
 	
 	
 	
-	private static String GetSecretKey(boolean useLoginId) {
+	private static String GetSecretKey() {
 		String pw = BaseSecretKey;
-		if (useLoginId) pw += Info.LoginId;
 		while(pw.length() < 32) pw += "0";
 		return pw;
 	}
 	
-	private static String encrypt2Base64(String toEncrypt,boolean useLoginId) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
-		SecretKeySpec keyspec = new SecretKeySpec(GetSecretKey(useLoginId).getBytes(),"AES");
+	private static String GetSecretKey(Info info) {
+		String pw = BaseSecretKey;
+		pw += info.LoginId;
+		while(pw.length() < 32) pw += "0";
+		return pw;
+	}
+	
+	private static String encrypt2Base64(String toEncrypt) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+		SecretKeySpec keyspec = new SecretKeySpec(GetSecretKey().getBytes(),"AES");
+		Cipher c = Cipher.getInstance("AES/ECB/PKCS5Padding");
+		c.init(Cipher.ENCRYPT_MODE, keyspec);
+		return Base64.encodeBase64String(c.doFinal(toEncrypt.getBytes()));
+	}
+	
+	private static String encrypt2Base64(String toEncrypt,Info info) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+		SecretKeySpec keyspec = new SecretKeySpec(GetSecretKey(info).getBytes(),"AES");
 		Cipher c = Cipher.getInstance("AES/ECB/PKCS5Padding");
 		c.init(Cipher.ENCRYPT_MODE, keyspec);
 		return Base64.encodeBase64String(c.doFinal(toEncrypt.getBytes()));
 	}
 
 	public static String Encrypt2Base64NoKey(String toEncrypt) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException{
-		return encrypt2Base64(toEncrypt, false);
+		return encrypt2Base64(toEncrypt);
 	}
 	
-	public static String Encrypt2Base64WithKey(String toEncrypt) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
-		return encrypt2Base64(toEncrypt, true);
+	public static String Encrypt2Base64WithKey(String toEncrypt, Info info) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
+		return encrypt2Base64(toEncrypt, info);
 	}
 	
 	public static String DecryptBase64NoKey2Str(String cyphertext) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
-		SecretKeySpec keyspec = new SecretKeySpec(GetSecretKey(false).getBytes(),"AES");
+		SecretKeySpec keyspec = new SecretKeySpec(GetSecretKey().getBytes(),"AES");
 		Cipher c = Cipher.getInstance("AES/ECB/PKCS5Padding");
 		c.init(Cipher.DECRYPT_MODE, keyspec);
 		return new String(c.doFinal(Base64.decodeBase64(cyphertext)));
 	}
-	public static String DecryptBase64WithKey2Str(String cyphertext) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
-		SecretKeySpec keyspec = new SecretKeySpec(GetSecretKey(true).getBytes(),"AES");
+	public static String DecryptBase64WithKey2Str(String cyphertext, Info info) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+		SecretKeySpec keyspec = new SecretKeySpec(GetSecretKey(info).getBytes(),"AES");
 		Cipher c = Cipher.getInstance("AES/ECB/PKCS5Padding");
 		c.init(Cipher.DECRYPT_MODE, keyspec);
 		return new String(c.doFinal(Base64.decodeBase64(cyphertext)));
 	}
 
-	private static byte[] decrypt2Bytes(byte[] ciphertext, boolean useLoginId) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
-		SecretKeySpec keyspec = new SecretKeySpec(GetSecretKey(useLoginId).getBytes(),"AES");
+	private static byte[] decrypt2Bytes(byte[] ciphertext) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
+		SecretKeySpec keyspec = new SecretKeySpec(GetSecretKey().getBytes(),"AES");
+		Cipher c = Cipher.getInstance("AES/ECB/PKCS5Padding");
+		c.init(Cipher.DECRYPT_MODE, keyspec);
+		return c.doFinal(ciphertext);
+	}
+	
+	private static byte[] decrypt2Bytes(byte[] ciphertext, Info info) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
+		SecretKeySpec keyspec = new SecretKeySpec(GetSecretKey(info).getBytes(),"AES");
 		Cipher c = Cipher.getInstance("AES/ECB/PKCS5Padding");
 		c.init(Cipher.DECRYPT_MODE, keyspec);
 		return c.doFinal(ciphertext);
 	}
 	
 	public static byte[] DecryptNoKey(byte[] Ciphertext) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException{
-		return decrypt2Bytes(Ciphertext, false);
+		return decrypt2Bytes(Ciphertext);
 	}
 
-	public static byte[] DecryptWithKey(byte[] ciphertext) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
-		return decrypt2Bytes(ciphertext, true);
+	public static byte[] DecryptWithKey(byte[] ciphertext, Info info) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
+		return decrypt2Bytes(ciphertext, info);
 	}
 }

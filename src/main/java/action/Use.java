@@ -9,36 +9,36 @@ import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 import org.w3c.dom.Document;
 
-import walker.ErrorData;
-import walker.Process;
+import walker.ErrorData.DataType;
+import walker.ErrorData.ErrorType;
 import action.ActionRegistry.Action;
 
-public class Use {
+public class Use extends AbstractAction {
 public static final Action Name = Action.USE;
 	
 	private static final String URL_USE = "http://web.million-arthurs.com/connect/app/item/use?cyt=1";
-	private static byte[] response;
+	private byte[] response;
 	
-	public static boolean run() throws Exception {
-		if (Process.info.toUse.isEmpty()) return false;
+	public boolean run() throws Exception {
+		if (process.info.toUse.isEmpty()) return false;
 		ArrayList<NameValuePair> post = new ArrayList<NameValuePair>();
-		post.add(new BasicNameValuePair("item_id", Process.info.toUse));
+		post.add(new BasicNameValuePair("item_id", process.info.toUse));
 		try {
-			response = Process.network.ConnectToServer(URL_USE, post, false);
+			response = process.network.ConnectToServer(URL_USE, post, false);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.text;
-			ErrorData.currentErrorType = ErrorData.ErrorType.ConnectionError;
-			ErrorData.text = ex.getLocalizedMessage();
+			errorData.currentDataType = DataType.text;
+			errorData.currentErrorType = ErrorType.ConnectionError;
+			errorData.text = ex.getLocalizedMessage();
 			throw ex;
 		}
 
 		Document doc;
 		try {
-			doc = Process.ParseXMLBytes(response);
+			doc = process.ParseXMLBytes(response);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.UseDataError;
-			ErrorData.bytes = response;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.UseDataError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		
@@ -47,22 +47,22 @@ public static final Action Name = Action.USE;
 		
 		try {
 			if (!xpath.evaluate("/response/header/error/code", doc).equals("1000")) {
-				ErrorData.currentErrorType = ErrorData.ErrorType.UseResponse;
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.text = xpath.evaluate("/response/header/error/message", doc);
+				errorData.currentErrorType = ErrorType.UseResponse;
+				errorData.currentDataType = DataType.text;
+				errorData.text = xpath.evaluate("/response/header/error/message", doc);
 				return false;
 			} else {
-				ErrorData.text = xpath.evaluate("/response/header/error/message", doc);
-				Process.info.toUse = "";
-				ParseUserDataInfo.parse(doc);
+				errorData.text = xpath.evaluate("/response/header/error/message", doc);
+				process.info.toUse = "";
+				ParseUserDataInfo.parse(doc, process);
 				return true;
 			}
 			
 		} catch (Exception ex) {
-			if (ErrorData.currentErrorType != ErrorData.ErrorType.none) throw ex;
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.UseDataError;
-			ErrorData.bytes = response;
+			if (errorData.currentErrorType != ErrorType.none) throw ex;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.UseDataError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		

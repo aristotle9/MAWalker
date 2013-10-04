@@ -9,36 +9,36 @@ import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 import org.w3c.dom.Document;
 
-import walker.ErrorData;
-import walker.Process;
+import walker.ErrorData.DataType;
+import walker.ErrorData.ErrorType;
 import action.ActionRegistry.Action;
 
-public class SellCard {
+public class SellCard extends AbstractAction {
 	public static final Action Name = Action.SELL_CARD;
 	
 	private static final String URL_SELL_CARD = "http://web.million-arthurs.com/connect/app/trunk/sell?cyt=1";
-	private static byte[] response;
+	private byte[] response;
 	
-	public static boolean run() throws Exception {
-		if (Process.info.toSell.isEmpty()) return false;
+	public boolean run() throws Exception {
+		if (process.info.toSell.isEmpty()) return false;
 		ArrayList<NameValuePair> post = new ArrayList<NameValuePair>();
-		post.add(new BasicNameValuePair("serial_id", Process.info.toSell));
+		post.add(new BasicNameValuePair("serial_id", process.info.toSell));
 		try {
-			response = Process.network.ConnectToServer(URL_SELL_CARD, post, false);
+			response = process.network.ConnectToServer(URL_SELL_CARD, post, false);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.text;
-			ErrorData.currentErrorType = ErrorData.ErrorType.ConnectionError;
-			ErrorData.text = ex.getLocalizedMessage();
+			errorData.currentDataType = DataType.text;
+			errorData.currentErrorType = ErrorType.ConnectionError;
+			errorData.text = ex.getLocalizedMessage();
 			throw ex;
 		}
 
 		Document doc;
 		try {
-			doc = Process.ParseXMLBytes(response);
+			doc = process.ParseXMLBytes(response);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.SellCardDataError;
-			ErrorData.bytes = response;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.SellCardDataError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		
@@ -47,21 +47,21 @@ public class SellCard {
 		
 		try {
 			if (!xpath.evaluate("/response/header/error/code", doc).equals("1010")) {
-				ErrorData.currentErrorType = ErrorData.ErrorType.SellCardResponse;
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.text = xpath.evaluate("/response/header/error/message", doc);
+				errorData.currentErrorType = ErrorType.SellCardResponse;
+				errorData.currentDataType = DataType.text;
+				errorData.text = xpath.evaluate("/response/header/error/message", doc);
 				return false;
 			} else {
-				ErrorData.text = xpath.evaluate("/response/header/error/message", doc);
-				Process.info.toSell = "";
+				errorData.text = xpath.evaluate("/response/header/error/message", doc);
+				process.info.toSell = "";
 				return true;
 			}
 			
 		} catch (Exception ex) {
-			if (ErrorData.currentErrorType != ErrorData.ErrorType.none) throw ex;
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.SellCardDataError;
-			ErrorData.bytes = response;
+			if (errorData.currentErrorType != ErrorType.none) throw ex;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.SellCardDataError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		

@@ -15,39 +15,39 @@ import org.apache.http.message.BasicNameValuePair;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
-import walker.ErrorData;
-import walker.Process;
+import walker.ErrorData.DataType;
+import walker.ErrorData.ErrorType;
 import action.ActionRegistry.Action;
 
-public class GetFloorInfo {
+public class GetFloorInfo extends AbstractAction {
 	public static final Action Name = Action.GET_FLOOR_INFO;
 	
 	private static final String URL_AREA = "http://web.million-arthurs.com/connect/app/exploration/area?cyt=1";
 	private static final String URL_FLOOR = "http://web.million-arthurs.com/connect/app/exploration/floor?cyt=1";
 	
 	
-	private static byte[] response;
+	private byte[] response;
 	
-	public static boolean run() throws Exception {
+	public boolean run() throws Exception {
 		response = null;
 		Document doc;
 		try {
-			response = Process.network.ConnectToServer(URL_AREA, new ArrayList<NameValuePair>(), false);
+			response = process.network.ConnectToServer(URL_AREA, new ArrayList<NameValuePair>(), false);
 		} catch (Exception ex) {
 			//if (ex.getMessage().equals("302")) 
 			// 上面的是为了截获里图跳转
-			ErrorData.currentDataType = ErrorData.DataType.text;
-			ErrorData.currentErrorType = ErrorData.ErrorType.ConnectionError;
-			ErrorData.text = ex.getMessage();
+			errorData.currentDataType = DataType.text;
+			errorData.currentErrorType = ErrorType.ConnectionError;
+			errorData.text = ex.getMessage();
 			throw ex;
 		}
 		
 		try {
-			doc = Process.ParseXMLBytes(response);
+			doc = process.ParseXMLBytes(response);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.AreaDataError;
-			ErrorData.bytes = response;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.AreaDataError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		
@@ -55,17 +55,17 @@ public class GetFloorInfo {
 			XPathFactory factory = XPathFactory.newInstance();
 			XPath xpath = factory.newXPath();
 			if (!xpath.evaluate("/response/header/error/code", doc).equals("0")) {
-				ErrorData.currentErrorType = ErrorData.ErrorType.AreaResponse;
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.text = xpath.evaluate("/response/header/error/message", doc);
+				errorData.currentErrorType = ErrorType.AreaResponse;
+				errorData.currentDataType = DataType.text;
+				errorData.text = xpath.evaluate("/response/header/error/message", doc);
 				return false;
 			}
 			
 			int areaCount = ((NodeList)xpath.evaluate("//area_info_list/area_info", doc, XPathConstants.NODESET)).getLength();
 			if (areaCount > 0) {
-				//Process.info.area = new Hashtable<Integer,Area>();
-				Process.info.area.clear();
-				Process.info.floor.clear();
+				//info.area = new Hashtable<Integer,Area>();
+				process.info.area.clear();
+				process.info.floor.clear();
 			}
 			for (int i = 1; i <= areaCount; i++){
 				Area a = new Area();
@@ -73,18 +73,18 @@ public class GetFloorInfo {
 				a.areaId = Integer.parseInt(xpath.evaluate(p+"id", doc));
 				a.areaName = xpath.evaluate(p+"name", doc);
 				a.exploreProgress = Integer.parseInt(xpath.evaluate(p+"prog_area", doc));
-				if (a.areaId > 100000) Process.info.area.put(a.areaId, a);
+				if (a.areaId > 100000) process.info.area.put(a.areaId, a);
 			}
-			Process.info.AllClear = true;
-			Process.info.front = null;
-			for (int i : Process.info.area.keySet()) {
-				getFloor(Process.info.area.get(i));
+			process.info.AllClear = true;
+			process.info.front = null;
+			for (int i : process.info.area.keySet()) {
+				getFloor(process.info.area.get(i));
 			} // end of area iterator
-			if (Process.info.front == null) Process.info.front = Process.info.floor.get(1);
-			Process.info.SetTimeoutByAction(Name);
+			if (process.info.front == null) process.info.front = process.info.floor.get(1);
+			process.info.SetTimeoutByAction(Name);
 			
 		} catch (Exception ex) {
-			if (ErrorData.currentErrorType == ErrorData.ErrorType.none) {
+			if (errorData.currentErrorType == ErrorType.none) {
 				throw ex;
 			}
 		}
@@ -92,26 +92,26 @@ public class GetFloorInfo {
 		return true;
 	}
 	
-	public static void getFloor(Area a) throws Exception {
+	public void getFloor(Area a) throws Exception {
 		ArrayList<NameValuePair> post = new ArrayList<NameValuePair>();
 		post.add(new BasicNameValuePair("area_id", String.valueOf(a.areaId)));
 		try {
-			response = Process.network.ConnectToServer(URL_FLOOR, post, false);
+			response = process.network.ConnectToServer(URL_FLOOR, post, false);
 		} catch (Exception ex) {
 			//if (ex.getMessage().equals("302")) 
 			// 上面的是为了截获里图跳转
-			ErrorData.currentDataType = ErrorData.DataType.text;
-			ErrorData.currentErrorType = ErrorData.ErrorType.ConnectionError;
-			ErrorData.text = ex.getLocalizedMessage();
+			errorData.currentDataType = DataType.text;
+			errorData.currentErrorType = ErrorType.ConnectionError;
+			errorData.text = ex.getLocalizedMessage();
 			throw ex;
 		}
 		Document doc;
 		try {
-			doc = Process.ParseXMLBytes(response);
+			doc = process.ParseXMLBytes(response);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.AreaDataError;
-			ErrorData.bytes = response;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.AreaDataError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		
@@ -130,15 +130,15 @@ public class GetFloorInfo {
 			f.progress = Integer.parseInt(xpath.evaluate(p+"progress", doc));
 			f.type = xpath.evaluate(p+"type", doc);
 			if (f.cost < 1) continue; //跳过秘境守护者
-			if (Process.info.floor.containsKey(f.cost)) {
-				if(Integer.parseInt(Process.info.floor.get(f.cost).areaId) > Integer.parseInt(f.areaId)) {
+			if (process.info.floor.containsKey(f.cost)) {
+				if(Integer.parseInt(process.info.floor.get(f.cost).areaId) > Integer.parseInt(f.areaId)) {
 					continue;
 				}
 			}
-			Process.info.floor.put(f.cost, f);
-			if (f.progress != 100 && a.exploreProgress != 100 && Process.info.AllClear) {
-				Process.info.front = f;
-				Process.info.AllClear = false;
+			process.info.floor.put(f.cost, f);
+			if (f.progress != 100 && a.exploreProgress != 100 && process.info.AllClear) {
+				process.info.front = f;
+				process.info.AllClear = false;
 			}
 		}
 	}

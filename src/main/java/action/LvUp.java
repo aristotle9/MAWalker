@@ -9,38 +9,38 @@ import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 import org.w3c.dom.Document;
 
-import walker.ErrorData;
-import walker.Process;
+import walker.ErrorData.DataType;
+import walker.ErrorData.ErrorType;
 import action.ActionRegistry.Action;
 
-public class LvUp {
+public class LvUp extends AbstractAction {
 	public static final Action Name = Action.LV_UP;
 	
 	private static final String URL_POINT_SETTING = "http://web.million-arthurs.com/connect/app/town/pointsetting?cyt=1";
 
 	
-	private static byte[] response;
+	private byte[] response;
 	
-	public static boolean run() throws Exception {
+	public boolean run() throws Exception {
 		ArrayList<NameValuePair> post = new ArrayList<NameValuePair>();
-		post.add(new BasicNameValuePair("ap", String.valueOf(Process.info.apUp)));
-		post.add(new BasicNameValuePair("bc", String.valueOf(Process.info.bcUp)));
+		post.add(new BasicNameValuePair("ap", String.valueOf(process.info.apUp)));
+		post.add(new BasicNameValuePair("bc", String.valueOf(process.info.bcUp)));
 		try {
-			response = Process.network.ConnectToServer(URL_POINT_SETTING, post, false);
+			response = process.network.ConnectToServer(URL_POINT_SETTING, post, false);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.text;
-			ErrorData.currentErrorType = ErrorData.ErrorType.ConnectionError;
-			ErrorData.text = ex.getMessage();
+			errorData.currentDataType = DataType.text;
+			errorData.currentErrorType = ErrorType.ConnectionError;
+			errorData.text = ex.getMessage();
 			throw ex;
 		}
 
 		Document doc;
 		try {
-			doc = Process.ParseXMLBytes(response);
+			doc = process.ParseXMLBytes(response);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.LvUpDataError;
-			ErrorData.bytes = response;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.LvUpDataError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		
@@ -50,21 +50,21 @@ public class LvUp {
 		try {
 			String code = xpath.evaluate("/response/header/error/code", doc);
 			if (!code.equals("0")) {
-				ErrorData.currentErrorType = ErrorData.ErrorType.LvUpResponse;
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.text = xpath.evaluate("/response/header/error/message", doc);
+				errorData.currentErrorType = ErrorType.LvUpResponse;
+				errorData.currentDataType = DataType.text;
+				errorData.text = xpath.evaluate("/response/header/error/message", doc);
 				return false;
 			}
 			
-			ParseUserDataInfo.parse(doc);
+			ParseUserDataInfo.parse(doc, process);
 			
-			Process.info.SetTimeoutByAction(Name);
+			process.info.SetTimeoutByAction(Name);
 			
 		} catch (Exception ex) {
-			if (ErrorData.currentErrorType != ErrorData.ErrorType.none) throw ex;
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.LvUpDataError;
-			ErrorData.bytes = response;
+			if (errorData.currentErrorType != ErrorType.none) throw ex;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.LvUpDataError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		

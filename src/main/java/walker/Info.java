@@ -22,10 +22,11 @@ public class Info {
 	// INFO: static variants are need to be configured in configure file
 	
 	// login info
-	public static String LoginId = "";
-	public static String LoginPw = "";
-	public static int Profile = 1;
+	public String LoginId = "";
+	public String LoginPw = "";
+	public int Profile = 1;
 	
+	public String UserAgent = "";
 	// user info
 	public String username = "";
 	public int ap = 0;
@@ -56,68 +57,68 @@ public class Info {
 	/**
 	 * 优先进行妖精战
 	 */
-	public static boolean FairyBattleFirst = true;
+	public boolean FairyBattleFirst = true;
 	/**
 	 * 不使用狼舔觉醒
 	 */
-	public static boolean RareFairyUseNormalDeck = false;
+	public boolean RareFairyUseNormalDeck = false;
 	/**
 	 * 允许deck不满足的情况下依旧走图和攻击
 	 */
-	public static boolean AllowBCInsuffient = false;
+	public boolean AllowBCInsuffient = false;
 	/**
 	 * 只走cost1的图
 	 */
-	public static boolean OneAPOnly = false;
+	public boolean OneAPOnly = false;
 	/**
 	 * 自动加点
 	 */
-	public static boolean AutoAddp = true;
+	public boolean AutoAddp = true;
 	/**
 	 * 允许舔同一个怪
 	 */
-	public static boolean AllowAttackSameFairy = true;
+	public boolean AllowAttackSameFairy = true;
 	/**
 	 * debug输出xml
 	 */
-	public static boolean debug = false;
+	public boolean debug = false;
 	/**
 	 * night mode 开关
 	 */
-	public static boolean nightModeSwitch = true;
+	public boolean nightModeSwitch = true;
 	
 	/**
 	 * 自动收集妖精战礼物
 	 */
-	public static boolean receiveBattlePresent = true;
+	public boolean receiveBattlePresent = true;
 	
 	// 吃药相关的开关
-	public static boolean autoUseAp = true;
-	public static boolean autoUseBc = true;
+	public boolean autoUseAp = true;
+	public boolean autoUseBc = true;
 	public enum autoUseType {
 		HALF_ONLY,
 		FULL_ONLY,
 		ALL
 	}
-	public static autoUseType autoApType = autoUseType.HALF_ONLY;
-	public static autoUseType autoBcType = autoUseType.HALF_ONLY;
-	public static int autoApLow = 1;
-	public static int autoBcLow = 50;
-	public static int autoApFullLow = 10;
-	public static int autoBcFullLow = 10;
+	public autoUseType autoApType = autoUseType.HALF_ONLY;
+	public autoUseType autoBcType = autoUseType.HALF_ONLY;
+	public int autoApLow = 1;
+	public int autoBcLow = 50;
+	public int autoApFullLow = 10;
+	public int autoBcFullLow = 10;
 	
 	// card list
 	public ArrayList<Card> cardList;
-	public static ArrayList<String> CanBeSold = new ArrayList<String>();
-	public static ArrayList<String> KeepCard;
+	public ArrayList<String> CanBeSold = new ArrayList<String>();
+	public ArrayList<String> KeepCard;
 	public String toSell = "";
 	
 	// deck
-	public static Deck FriendFairyBattleRare = new Deck();
-	public static Deck PublicFairyBattle = new Deck();
-	public static Deck PrivateFairyBattleNormal = new Deck();
-	public static Deck PrivateFairyBattleRare = new Deck();
-	public static Deck FriendFairyBattleNormal = new Deck();
+	public Deck FriendFairyBattleRare = new Deck();
+	public Deck PublicFairyBattle = new Deck();
+	public Deck PrivateFairyBattleNormal = new Deck();
+	public Deck PrivateFairyBattleRare = new Deck();
+	public Deck FriendFairyBattleNormal = new Deck();
 	
 	
 	// area

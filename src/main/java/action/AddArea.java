@@ -13,37 +13,37 @@ import org.apache.http.NameValuePair;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
-import walker.ErrorData;
-import walker.Process;
+import walker.ErrorData.DataType;
+import walker.ErrorData.ErrorType;
 import action.ActionRegistry.Action;
 
-public class AddArea {
+public class AddArea extends AbstractAction {
 	public static final Action Name = Action.ADD_AREA;
 	
 	private static final String URL_AREA = "http://web.million-arthurs.com/connect/app/exploration/area?cyt=1";	
 	
-	private static byte[] response;
+	private byte[] response;
 	
-	public static boolean run() throws Exception {
+	public boolean run() throws Exception {
 		response = null;
 		Document doc;
 		try {
-			response = Process.network.ConnectToServer(URL_AREA, new ArrayList<NameValuePair>(), false);
+			response = process.network.ConnectToServer(URL_AREA, new ArrayList<NameValuePair>(), false);
 		} catch (Exception ex) {
 			//if (ex.getMessage().equals("302")) 
 			// 上面的是为了截获里图跳转
-			ErrorData.currentDataType = ErrorData.DataType.text;
-			ErrorData.currentErrorType = ErrorData.ErrorType.ConnectionError;
-			ErrorData.text = ex.getMessage();
+			errorData.currentDataType = DataType.text;
+			errorData.currentErrorType = ErrorType.ConnectionError;
+			errorData.text = ex.getMessage();
 			throw ex;
 		}
 		
 		try {
-			doc = Process.ParseXMLBytes(response);
+			doc = process.ParseXMLBytes(response);
 		} catch (Exception ex) {
-			ErrorData.currentDataType = ErrorData.DataType.bytes;
-			ErrorData.currentErrorType = ErrorData.ErrorType.AreaDataError;
-			ErrorData.bytes = response;
+			errorData.currentDataType = DataType.bytes;
+			errorData.currentErrorType = ErrorType.AreaDataError;
+			errorData.bytes = response;
 			throw ex;
 		}
 		
@@ -51,35 +51,35 @@ public class AddArea {
 			XPathFactory factory = XPathFactory.newInstance();
 			XPath xpath = factory.newXPath();
 			if (!xpath.evaluate("/response/header/error/code", doc).equals("0")) {
-				ErrorData.currentErrorType = ErrorData.ErrorType.AreaResponse;
-				ErrorData.currentDataType = ErrorData.DataType.text;
-				ErrorData.text = xpath.evaluate("/response/header/error/message", doc);
+				errorData.currentErrorType = ErrorType.AreaResponse;
+				errorData.currentDataType = DataType.text;
+				errorData.text = xpath.evaluate("/response/header/error/message", doc);
 				return false;
 			}
 			
 			int areaCount = ((NodeList)xpath.evaluate("//area_info_list/area_info", doc, XPathConstants.NODESET)).getLength();
-			if (areaCount > 0) Process.info.area = new Hashtable<Integer,Area>();
+			if (areaCount > 0) process.info.area = new Hashtable<Integer,Area>();
 			Area newArea = new Area();
 			newArea.areaId = -1;
 			for (int i = areaCount; i > 0; i--){
 				Area a = new Area();
 				String p = String.format("//area_info_list/area_info[%d]/",i);
 				a.areaId = Integer.parseInt(xpath.evaluate(p+"id", doc));
-				if (Process.info.area.containsKey(a.areaId)) {
+				if (process.info.area.containsKey(a.areaId)) {
 					continue;
 				} else {
 					newArea = a;
 				}
 				a.areaName = xpath.evaluate(p+"name", doc);
 				a.exploreProgress = Integer.parseInt(xpath.evaluate(p+"prog_area", doc));
-				if (a.areaId > 100000) Process.info.area.put(a.areaId, a);
+				if (a.areaId > 100000) process.info.area.put(a.areaId, a);
 			}
-			Process.info.AllClear = true;
+			process.info.AllClear = true;
 			
-			if (newArea.areaId != -1) GetFloorInfo.getFloor(newArea);
+			if (newArea.areaId != -1) ((GetFloorInfo) process.action(GetFloorInfo.class)).getFloor(newArea);
 			
 		} catch (Exception ex) {
-			if (ErrorData.currentErrorType == ErrorData.ErrorType.none) {
+			if (errorData.currentErrorType == ErrorType.none) {
 				throw ex;
 			}
 		}
