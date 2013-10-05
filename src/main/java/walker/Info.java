@@ -26,7 +26,11 @@ public class Info {
 	public String LoginPw = "";
 	public int Profile = 1;
 	
+	//connection config
 	public String UserAgent = "";
+	public String proxyHost = "";
+	public String proxyPort = "";
+	public String cookieS = "";
 	// user info
 	public String username = "";
 	public int ap = 0;

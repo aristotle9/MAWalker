@@ -20,7 +20,11 @@ public class GetConfig {
 			
 			info.LoginId = xpath.evaluate("/config/username", doc);
 			info.LoginPw = xpath.evaluate("/config/password", doc);
+			
 			info.UserAgent = xpath.evaluate("/config/user_agent", doc);
+			info.proxyHost = xpath.evaluate("/config/proxy_host", doc);
+			info.proxyPort = xpath.evaluate("/config/proxy_port", doc);
+			info.cookieS = xpath.evaluate("/config/cookie_s", doc);
 			
 			info.Profile = Integer.parseInt(xpath.evaluate("/config/profile", doc));
 			

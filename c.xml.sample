@@ -1,8 +1,15 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <config><!-- 所有的字符都应该是半角的，请注意 -->
+    <!-- 账号 -->
 	<username></username>
 	<password></password>
+	
+	<!-- 连接: 不明白其含义,则不需要改动 -->
 	<user_agent>Million/236 (t03gchn; t03gzc; 4.1.2) samsung/t03gzc/t03gchn:4.1.2/JZO54K/N7100ZCDMD3:user/release-keys GooglePlay</user_agent>
+	<proxy_host></proxy_host><!-- 比如 127.0.0.1 0.0.0.0 localhost,留空不使用代理 -->
+	<proxy_port></proxy_port><!-- 比如 8088 8000 80 -->
+	<cookie_s></cookie_s><!-- 比如 aee9ian9dnv064jk88miocujh5 -->
+	
 	<profile>1</profile><!-- 不要改 -->
 	<option> <!-- 以下四个选项如果选是则填1，否则填0 -->
 		<fairy_battle_first>0</fairy_battle_first><!-- 优先考虑妖精战 -->

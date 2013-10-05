@@ -10,16 +10,24 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
+import org.apache.http.HttpHost;
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.CookieStore;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.config.RequestConfig.Builder;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.cookie.Cookie;
+import org.apache.http.impl.client.BasicCookieStore;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.cookie.BasicClientCookie;
 import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.params.HttpParams;
 
 import walker.Info;
 
@@ -27,16 +35,47 @@ import walker.Info;
 public class Network {
 	private static final String Auth = "eWa25vrE";
 	private static final String Key = "2DbcAh3G";
+	private static final String SERVER_HOST = "web.million-arthurs.com";
 	
 	private Info info;
-	private DefaultHttpClient client;
+	private HttpClient client;
+	private CookieStore cookies;
+	HttpClientContext context;
 	
 	public Network(Info info) {
+		
 		this.info = info;
-		client = new DefaultHttpClient();
-		HttpParams hp = client.getParams();
-		hp.setParameter("http.socket.timeout", 0x7530);
-		hp.setParameter("http.connection.timeout", 0x7530);
+		Builder reqConfigBuilder = RequestConfig.custom()
+				.setSocketTimeout(0x7530)
+				.setConnectTimeout(0x7530);
+
+		//set proxy
+		if(!info.proxyHost.isEmpty()) {
+			reqConfigBuilder.setProxy(
+					new HttpHost(
+							info.proxyHost, 
+							new Integer(info.proxyPort)));
+		}
+		
+		//cookies store
+		cookies = new BasicCookieStore();
+		
+		//要同步, ua也不要变, 这里不是仅 cookie登录
+		if(!info.cookieS.isEmpty()) {
+			BasicClientCookie cookieS = new BasicClientCookie("S", info.cookieS);
+			cookieS.setDomain(SERVER_HOST);
+			cookieS.setPath("/");
+			cookies.addCookie(cookieS);
+		}
+		//http client
+		client = HttpClients.custom()
+				.setDefaultCookieStore(cookies)
+				.setDefaultRequestConfig(reqConfigBuilder.build())
+				.build();
+		
+		//context
+		context = HttpClientContext.create();
+		context.setCredentialsProvider(new BasicCredentialsProvider());
 	}
 	
 	private List<NameValuePair> RequestProcess(List<NameValuePair> source, boolean UseDefaultKey) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
@@ -54,6 +93,7 @@ public class Network {
 	}
 	
 	public byte[] ConnectToServer(String url, List<NameValuePair> content, boolean UseDefaultKey) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, ClientProtocolException, IOException {
+		
 		List<NameValuePair> post = RequestProcess(content,UseDefaultKey);
 		
 		HttpPost hp = new HttpPost(url);
@@ -61,12 +101,13 @@ public class Network {
 		hp.setHeader("Accept-Encoding", "gzip, deflate");
 		hp.setEntity(new UrlEncodedFormEntity(post,"UTF-8"));
 		
-		AuthScope as = new AuthScope(hp.getURI().getHost(),hp.getURI().getPort());
-		CredentialsProvider cp = client.getCredentialsProvider();
-		UsernamePasswordCredentials upc = new UsernamePasswordCredentials(Auth,Key);
-		cp.setCredentials(as, upc);
-		byte[] b = client.execute(hp,new HttpResponseHandler());
-		
+		context.getCredentialsProvider()
+		.setCredentials(
+				new AuthScope(hp.getURI().getHost(),hp.getURI().getPort()),
+				new UsernamePasswordCredentials(Auth, Key));
+	
+		byte[] b = client.execute(hp, new HttpResponseHandler(), context);
+
 		/* end */
 		if (b != null) {
 			if (url.contains("gp_verify_receipt?")) {
@@ -90,4 +131,8 @@ public class Network {
 		return null;
 	}
 	
+	public String getCurrentCookieS() {
+		Cookie cookie = cookies.getCookies().get(0);//
+		return cookie.getValue();
+	}
 }
